@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DURF Loot Chest v4</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #12121f;
+    color: #e0d6c2;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    color: #c9a84c;
+    text-shadow: 0 0 20px rgba(201,168,76,0.3);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 0.78rem;
+    color: #5a5550;
+    font-style: italic;
+    margin-bottom: 16px;
+  }
+
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    justify-content: center; margin-bottom: 20px; max-width: 400px;
+  }
+
+  .filter-btn {
+    background: #1e1e30; border: 1px solid #3a3a50;
+    color: #7a7265; font-family: inherit; font-size: 0.75rem;
+    padding: 5px 10px; border-radius: 20px;
+    cursor: pointer; transition: all 0.2s; user-select: none;
+  }
+
+  .filter-btn.active { border-color: #c9a84c; color: #e0d6c2; background: #2a2a3e; }
+  .filter-btn:hover { border-color: #c9a84c88; }
+
+  .chest-area { width: 120px; height: 110px; margin-bottom: 20px; }
+
+  .chest {
+    font-size: 80px; text-align: center; line-height: 110px;
+    user-select: none; filter: drop-shadow(0 0 12px rgba(201,168,76,0.15));
+  }
+
+  .chest.shake { animation: shake 0.5s ease-in-out; }
+  .chest.open  { animation: popOpen 0.4s ease-out; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0) rotate(0); }
+    15% { transform: translateX(-7px) rotate(-3deg); }
+    30% { transform: translateX(7px) rotate(3deg); }
+    45% { transform: translateX(-5px) rotate(-2deg); }
+    60% { transform: translateX(5px) rotate(2deg); }
+    75% { transform: translateX(-3px) rotate(-1deg); }
+  }
+
+  @keyframes popOpen {
+    0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); }
+  }
+
+  .btn-open {
+    background: linear-gradient(135deg, #8b6914, #c9a84c);
+    color: #12121f; border: 2px solid #c9a84c;
+    padding: 12px 30px; font-size: 1rem; font-family: inherit;
+    font-weight: bold; border-radius: 8px; cursor: pointer;
+    letter-spacing: 1px; transition: all 0.2s; text-transform: uppercase;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.25);
+  }
+
+  .btn-open:hover {
+    background: linear-gradient(135deg, #c9a84c, #e8cc6a);
+    transform: translateY(-2px); box-shadow: 0 6px 28px rgba(201,168,76,0.45);
+  }
+
+  .btn-open:active { transform: translateY(1px); }
+  .btn-open:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .counter { font-size: 0.75rem; color: #5a5550; margin-top: 10px; }
+
+  .card {
+    background: linear-gradient(145deg, #1e1e30, #16162a);
+    border-radius: 12px; padding: 22px; margin-top: 22px;
+    max-width: 360px; width: 100%;
+    opacity: 0; transform: translateY(20px) scale(0.95);
+    transition: all 0.5s ease-out;
+  }
+
+  .card.visible { opacity: 1; transform: translateY(0) scale(1); }
+
+  .card.common { border: 1px solid #5a5a6a; box-shadow: 0 4px 20px rgba(100,100,120,0.15); }
+  .card.rare   { border: 1px solid #4fc3f7; box-shadow: 0 4px 30px rgba(79,195,247,0.2); }
+  .card.epic   { border: 1px solid #ce93d8; box-shadow: 0 4px 40px rgba(206,147,216,0.3); animation: epicGlow 2s ease-in-out infinite alternate; }
+
+  @keyframes epicGlow {
+    from { box-shadow: 0 4px 30px rgba(206,147,216,0.2); }
+    to   { box-shadow: 0 4px 50px rgba(206,147,216,0.45); }
+  }
+
+  .card-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 8px;
+  }
+
+  .card-category { font-size: 0.7rem; color: #7a7265; text-transform: uppercase; letter-spacing: 1px; }
+
+  .card-rarity {
+    font-size: 0.7rem; font-weight: bold; letter-spacing: 1px;
+    padding: 2px 8px; border-radius: 10px;
+  }
+
+  .card-rarity.common { color: #9e9e9e; background: #9e9e9e18; }
+  .card-rarity.rare   { color: #4fc3f7; background: #4fc3f718; }
+  .card-rarity.epic   { color: #ce93d8; background: #ce93d818; }
+
+  .card-name { font-size: 1.25rem; margin-bottom: 6px; }
+  .card-name.common { color: #c0c0c0; }
+  .card-name.rare   { color: #4fc3f7; }
+  .card-name.epic   { color: #ce93d8; }
+
+  .card-desc { font-size: 0.9rem; color: #9a9080; line-height: 1.5; margin-bottom: 12px; }
+
+  .card-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+  .stat-badge {
+    font-size: 0.78rem; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid; display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  .stat-damage { color: #ff8a65; border-color: #ff8a6544; background: #ff8a6515; }
+  .stat-armor  { color: #81d4fa; border-color: #81d4fa44; background: #81d4fa15; }
+  .stat-shield { color: #a5d6a7; border-color: #a5d6a744; background: #a5d6a715; }
+  .stat-slots  { color: #bdbdbd; border-color: #bdbdbd44; background: #bdbdbd15; }
+  .stat-note   { color: #ffcc80; border-color: #ffcc8044; background: #ffcc8015; }
+
+  .card-price {
+    font-size: 0.95rem; color: #e8cc6a;
+    text-align: right; font-weight: bold;
+  }
+
+  .bottom-section {
+    margin-top: 30px; max-width: 360px; width: 100%;
+    display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start;
+  }
+
+  .history { min-width: 0; }
+
+  .history-title {
+    font-size: 0.8rem; color: #5a5550; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+
+  .btn-clear {
+    background: none; border: 1px solid #3a3a4e; color: #5a5550;
+    font-size: 0.65rem; padding: 3px 10px; border-radius: 4px;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+
+  .btn-clear:hover { border-color: #c9a84c; color: #c9a84c; }
+
+  .history-list {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 320px; overflow-y: auto; padding-right: 4px;
+  }
+
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-track { background: #1e1e30; }
+  .history-list::-webkit-scrollbar-thumb { background: #3a3a4e; border-radius: 2px; }
+
+  .history-item {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px; border-radius: 6px; padding: 6px 10px;
+    font-size: 0.78rem; border: 1px solid; animation: fadeIn 0.3s ease-out;
+  }
+
+  .history-item.common { background: #1e1e30; border-color: #3a3a4e; color: #a0a0a0; }
+  .history-item.rare   { background: #1a2535; border-color: #4fc3f744; color: #4fc3f7; }
+  .history-item.epic   { background: #251a2a; border-color: #ce93d844; color: #ce93d8; }
+
+  .hist-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .hist-price {
+    font-size: 0.72rem; color: #c9a84c;
+    white-space: nowrap; display: flex; align-items: center; gap: 6px;
+  }
+
+  .hist-remove {
+    background: none; border: none; color: #7a5550;
+    font-size: 1rem; cursor: pointer; padding: 0 4px;
+    line-height: 1; font-family: inherit;
+  }
+
+  .hist-remove:hover { color: #ff6b6b; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .wallet {
+    background: linear-gradient(145deg, #2a2415, #1e1a10);
+    border: 1px solid #c9a84c66; border-radius: 10px;
+    padding: 14px 16px; text-align: center; min-width: 110px;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.15);
+    position: sticky; top: 10px;
+  }
+
+  .wallet-label { font-size: 0.7rem; color: #8a7645; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .wallet-value { font-size: 1.4rem; color: #e8cc6a; font-weight: bold; text-shadow: 0 0 10px rgba(232,204,106,0.3); }
+  .wallet-sub { font-size: 0.7rem; color: #8a7645; margin-top: 4px; }
+
+  .slots-bar {
+    background: #1e1e30; border: 1px solid #3a3a50;
+    border-radius: 8px; padding: 10px 12px; margin-top: 10px;
+    font-size: 0.72rem; color: #7a7265; text-align: center;
+  }
+
+  .slots-value { color: #e0d6c2; font-weight: bold; font-size: 0.85rem; }
+  .slots-value.over { color: #ff6b6b; }
+
+  .particles {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: -1; overflow: hidden;
+  }
+
+  .particle {
+    position: absolute; background: #c9a84c22;
+    border-radius: 50%; animation: float linear infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(100vh); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-10vh); opacity: 0; }
+  }
+
+  @media (max-width: 420px) {
+    .bottom-section { grid-template-columns: 1fr; }
+    .wallet { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<h1>⚔️ DURF LOOT CHEST ⚔️</h1>
+<p class="subtitle">100 предметов · официальные правила DURF</p>
+
+<div class="filters" id="filters">
+  <button class="filter-btn active" data-cat="weapon"   onclick="toggleFilter(this)">⚔️ Оружие</button>
+  <button class="filter-btn active" data-cat="armor"    onclick="toggleFilter(this)">🛡️ Доспехи</button>
+  <button class="filter-btn active" data-cat="tool"     onclick="toggleFilter(this)">🔧 Инструменты</button>
+  <button class="filter-btn active" data-cat="gear"     onclick="toggleFilter(this)">🎒 Снаряжение</button>
+  <button class="filter-btn active" data-cat="magic"    onclick="toggleFilter(this)">✨ Магия</button>
+  <button class="filter-btn active" data-cat="treasure" onclick="toggleFilter(this)">💰 Сокровища</button>
+</div>
+
+<div class="chest-area"><div class="chest" id="chest">🎁</div></div>
+
+<button class="btn-open" id="btnOpen" onclick="openChest()">🎲 Открыть сундук</button>
+<div class="counter" id="counter">Сундуков открыто: 0</div>
+
+<div class="card" id="card">
+  <div class="card-header">
+    <span class="card-category" id="cardCategory"></span>
+    <span class="card-rarity" id="cardRarity"></span>
+  </div>
+  <div class="card-name" id="cardName"></div>
+  <div class="card-desc" id="cardDesc"></div>
+  <div class="card-stats" id="cardStats"></div>
+  <div class="card-price" id="cardPrice"></div>
+</div>
+
+<div class="bottom-section" id="bottomSection" style="display:none;">
+  <div class="history">
+    <div class="history-title">
+      <span>📜 Лут</span>
+      <button class="btn-clear" onclick="clearHistory()">очистить</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <div>
+    <div class="wallet">
+      <div class="wallet-label">💰 Кошелёк</div>
+      <div class="wallet-value" id="walletValue">0</div>
+      <div class="wallet-sub">gp</div>
+    </div>
+    <div class="slots-bar">
+      Слотов: <span class="slots-value" id="slotsValue">0 / 10</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================
+//  100 ПРЕДМЕТОВ ПО ПРАВИЛАМ DURF
+//  n=имя, d=описание, p=цена(gp целое),
+//  c=категория, r=редкость, s=слоты,
+//  dmg=урон (число), arm=броня (число),
+//  dr=защита щита (ур. –1), note=свойство
+// ============================
+const LOOT = [
+  // ============================
+  //  ⚔️ ОРУЖИЕ (18)
+  // ============================
+  // Обычные — простое оружие (2–4 gp)
+  {n:"Праща",                 d:"Кожаная. Камни ищи сам.",                               p:2,  c:"weapon", r:"common", dmg:2, s:1, note:"нужны боеприпасы"},
+  {n:"Духовая трубка",        d:"Бамбуковая. Тихая, но слабая.",                         p:2,  c:"weapon", r:"common", dmg:2, s:1, note:"нужны боеприпасы"},
+  {n:"Метательные дротики (3)",d:"Лёгкие, оперённые. Один уже гнутый.",                  p:2,  c:"weapon", r:"common", dmg:2, s:1},
+  {n:"Ржавый кинжал",         d:"Туповат, но тетанус в комплекте.",                      p:4,  c:"weapon", r:"common", dmg:3, s:1},
+  {n:"Костяной нож",          d:"Вырезан из чьей-то берцовой кости. Неприятно тёплый.",  p:4,  c:"weapon", r:"common", dmg:3, s:1},
+  {n:"Булава",                d:"Железная, с деревянной рукоятью. Проста и надёжна.",    p:4,  c:"weapon", r:"common", dmg:3, s:1},
+  {n:"Боевой посох",          d:"Обожжённый ясень, окован железом с обеих сторон.",      p:4,  c:"weapon", r:"common", dmg:3, s:1},
+  {n:"Серп",                  d:"Жатвенный. Неудобен в бою, но жутко выглядит.",         p:4,  c:"weapon", r:"common", dmg:3, s:1},
+  {n:"Кастет",                d:"Медный, на четыре пальца. Бьёт больно.",                p:4,  c:"weapon", r:"common", dmg:3, s:1},
+  {n:"Короткое копьё",        d:"Древко потёрто, наконечник цел. Колоть и метать.",      p:4,  c:"weapon", r:"common", dmg:3, s:1},
+
+  // Редкие — боевое оружие (10–30 gp)
+  {n:"Меч",                   d:"Стальной, сбалансированный. Надёжный спутник.",          p:10, c:"weapon", r:"rare", dmg:4, s:2},
+  {n:"Боевой топор",          d:"Односторонний, с крюком. Крепкий и злой.",               p:10, c:"weapon", r:"rare", dmg:4, s:2},
+  {n:"Кистень",               d:"Железный шар на цепи. Пробивает щиты.",                  p:10, c:"weapon", r:"rare", dmg:4, s:2},
+  {n:"Двуручный меч",         d:"Длинный, тяжёлый. Нужны две руки и крепкие плечи.",      p:15, c:"weapon", r:"rare", dmg:5, s:3, note:"двуручное"},
+  {n:"Лёгкий арбалет",        d:"Взводится медленно, бьёт точно.",                        p:30, c:"weapon", r:"rare", dmg:3, s:3, note:"двуручное"},
+
+  // Эпические (35–150 gp)
+  {n:"Длинный лук",           d:"Тисовый, с хорошей тягой. Стреляет на 50 м.",            p:35,  c:"weapon", r:"epic", dmg:3, s:2, note:"двуручное"},
+  {n:"Пистоль",               d:"Чёрный порох и шум на весь коридор.",                    p:100, c:"weapon", r:"epic", dmg:5, s:2, note:"громкое, перезарядка"},
+  {n:"Клинок лунного серебра",d:"Мерцает в темноте. Нежить берёт двойной урон.",          p:150, c:"weapon", r:"epic", dmg:5, s:2, note:"+2 урона нежити"},
+
+  // ============================
+  //  🛡️ ДОСПЕХИ (14)
+  // ============================
+  // Обычные — щиты (10 gp) и лёгкая броня (20 gp)
+  {n:"Деревянный щит",        d:"Круглый, с умбоном. Треснут по краю.",                   p:10, c:"armor", r:"common", dr:1, s:1},
+  {n:"Железный щит",          d:"Тяжеловат, но держит удар.",                             p:10, c:"armor", r:"common", dr:1, s:1},
+  {n:"Плетёный щит",          d:"Из прутьев и кожи. Лёгкий, но недолговечный.",           p:10, c:"armor", r:"common", dr:1, s:1},
+  {n:"Усиленный щит",         d:"С железной окантовкой и шипом в центре.",                p:10, c:"armor", r:"common", dr:1, s:1},
+  {n:"Кожаная куртка",        d:"Потёртая, но от ножа спасёт.",                           p:20, c:"armor", r:"common", arm:3, s:1},
+  {n:"Стёганый доспех",       d:"Многослойная ткань, пропитанная смолой. Жарко.",         p:20, c:"armor", r:"common", arm:3, s:1},
+  {n:"Клёпаный кожаный доспех",d:"Кожа с медными заклёпками. Выглядит сурово.",           p:20, c:"armor", r:"common", arm:3, s:1},
+  {n:"Доспех из шкур",        d:"Волчьи шкуры и кости. Воняет, но греет.",                p:20, c:"armor", r:"common", arm:3, s:1},
+
+  // Редкие — средняя броня (50 gp)
+  {n:"Кольчуга",              d:"Мелкое плетение, почти без дыр. Шумит при ходьбе.",      p:50, c:"armor", r:"rare", arm:5, s:2},
+  {n:"Чешуйчатый доспех",     d:"Стальные пластинки внахлёст. Блестит на солнце.",        p:50, c:"armor", r:"rare", arm:5, s:2},
+  {n:"Ламеллярный доспех",    d:"Пластинки связаны шнуром. Подвижный и прочный.",         p:50, c:"armor", r:"rare", arm:5, s:2},
+  {n:"Пластинчатый жилет",    d:"Короткий нагрудник из пластин. Защищает торс.",          p:50, c:"armor", r:"rare", arm:5, s:2},
+
+  // Эпические — тяжёлая броня (200+ gp)
+  {n:"Полный латный доспех",  d:"Сталь с головы до пят. Неостановимый — и неповоротливый.",p:200, c:"armor", r:"epic", arm:7, s:3},
+  {n:"Мифриловая кольчуга",   d:"Лёгкая как шёлк. Носится как рубаха, защищает как доспех.",p:200, c:"armor", r:"epic", arm:5, s:1, note:"лёгкая"},
+
+  // ============================
+  //  🔧 ИНСТРУМЕНТЫ (16)
+  // ============================
+  {n:"Железный молоток",      d:"Для шипов, гвоздей и черепов.",                         p:1, c:"tool", r:"common", s:1},
+  {n:"Сапёрная лопатка",      d:"Короткая, удобная. Копать и рубить корни.",             p:1, c:"tool", r:"common", s:1},
+  {n:"Ломик",                 d:"Гнутый, но рычаг даёт мощный. Двери не устоят.",        p:1, c:"tool", r:"common", s:1},
+  {n:"Ручная пила",           d:"Туповата, но доску перепилит.",                         p:1, c:"tool", r:"common", s:1},
+  {n:"Напильник",             d:"Для заточки клинков и подгонки замков.",                p:1, c:"tool", r:"common", s:1},
+  {n:"Клещи",                 d:"Кузнечные, ржавые. Держат крепко.",                     p:1, c:"tool", r:"common", s:1},
+  {n:"Долото",                d:"С деревянной ручкой. Для камня и дерева.",              p:1, c:"tool", r:"common", s:1},
+  {n:"Топор дровосека",       d:"Тяжёлый, для валки деревьев.",                          p:2, c:"tool", r:"common", s:2},
+  {n:"Складная удочка",       d:"Бамбуковая, с леской и крючком.",                       p:1, c:"tool", r:"common", s:1},
+  {n:"Верёвочная лестница (5м)",d:"Неудобная, шаткая, но лучше, чем прыгать.",           p:2, c:"tool", r:"common", s:1},
+
+  {n:"Набор отмычек",         d:"Пять крючков в кожаном чехле.",                         p:5,  c:"tool", r:"rare", s:1},
+  {n:"Подзорная труба",       d:"Латунная, с трещиной в линзе. Увеличивает ×5.",         p:6,  c:"tool", r:"rare", s:1},
+  {n:"Компас",                d:"Стрелка дёргается, но север показывает верно.",         p:5,  c:"tool", r:"rare", s:1},
+  {n:"Алхимический набор",    d:"Ступка, пробирки, горелка. Для зелий и ядов.",          p:10, c:"tool", r:"rare", s:2},
+
+  {n:"Универсальный ключ",    d:"Подстраивается под любой замок.",                       p:50, c:"tool", r:"epic", s:1},
+  {n:"Линза истинного зрения",d:"Монокль: видна магия, иллюзии и невидимое.",            p:75, c:"tool", r:"epic", s:1},
+
+  // ============================
+  //  🎒 СНАРЯЖЕНИЕ (22)
+  // ============================
+  {n:"Факелы (5 шт.)",        d:"Горят по часу. Коптят, но светят честно.",              p:1, c:"gear", r:"common", s:1},
+  {n:"Верёвка (10 м)",        d:"Пеньковая, крепкая. Выдержит одного человека.",         p:1, c:"gear", r:"common", s:1},
+  {n:"Коробка мелков",        d:"Белые, красные, синие. Метить коридоры и карты.",       p:1, c:"gear", r:"common", s:1},
+  {n:"Восковые свечи (5 шт.)",d:"Тусклые, но не гаснут от сквозняка.",                   p:1, c:"gear", r:"common", s:1},
+  {n:"Пузырёк масла",         d:"Для фонаря, замков или скользкого пола.",               p:1, c:"gear", r:"common", s:1},
+  {n:"Сухой паёк (3 дня)",    d:"Сухари, солонина, сухофрукты. Вкусно не будет.",        p:2, c:"gear", r:"common", s:1},
+  {n:"Бурдюк с водой",        d:"Кожаный, пол-литра. Не протекает… пока.",               p:1, c:"gear", r:"common", s:1},
+  {n:"Холщовый мешок",        d:"Грубый, вместительный. Влезет голова гоблина.",         p:1, c:"gear", r:"common", s:1},
+  {n:"Железные шипы (10)",    d:"Для заклинивания дверей и ловушек.",                    p:1, c:"gear", r:"common", s:1},
+  {n:"Кремень и огниво",      d:"Искру даёт с третьего удара. Ну, обычно.",              p:1, c:"gear", r:"common", s:1},
+  {n:"Медное зеркальце",      d:"Маленькое, мутное. Заглядывать за углы.",               p:1, c:"gear", r:"common", s:1},
+  {n:"Шерстяное одеяло",      d:"Серое, колючее, тёплое. Пахнет костром.",               p:1, c:"gear", r:"common", s:1},
+  {n:"Дырявая палатка",       d:"Одноместная. От дождя спасёт частично.",                p:2, c:"gear", r:"common", s:2},
+  {n:"Кусок мыла",            d:"Пахнет лавандой. Роскошь в подземелье.",                p:1, c:"gear", r:"common", s:1},
+
+  {n:"Фонарь с заслонкой",    d:"Регулируемый свет. Масло — отдельно.",                  p:3, c:"gear", r:"rare", s:1},
+  {n:"Крюк-кошка с верёвкой", d:"Три зубца, 10 м верёвки.",                              p:5, c:"gear", r:"rare", s:1},
+  {n:"Железная цепь (5 м)",   d:"Прочная, звенит на весь коридор.",                      p:3, c:"gear", r:"rare", s:1},
+  {n:"Полевая аптечка",       d:"Бинты, мазь, игла с ниткой.",                           p:5, c:"gear", r:"rare", s:1},
+  {n:"Набор для маскировки",  d:"Сажа, парик, фальшивый нос.",                           p:5, c:"gear", r:"rare", s:1},
+
+  {n:"Вечногорящий факел",    d:"Не гаснет, не коптит. Горит синим.",                    p:50,  c:"gear", r:"epic", s:1},
+  {n:"Безразмерный мешок",    d:"Снаружи обычный, внутри — как комната.",                p:100, c:"gear", r:"epic", s:1},
+  {n:"Плащ тени",             d:"В неподвижности сливается с темнотой.",                 p:75,  c:"gear", r:"epic", s:1},
+
+  // ============================
+  //  ✨ МАГИЯ (14)
+  // ============================
+  {n:"Свеча правды",          d:"Пока горит — нельзя лгать. 10 минут.",                  p:2, c:"magic", r:"common", s:1},
+  {n:"Мелок тишины",          d:"Начерти круг — звуки не выйдут наружу.",                p:2, c:"magic", r:"common", s:1},
+  {n:"Перо перевода",         d:"Пишет на любом языке, если диктовать вслух.",           p:3, c:"magic", r:"common", s:1},
+  {n:"Камень света",          d:"Галька, светится при прикосновении. Час в день.",       p:2, c:"magic", r:"common", s:1},
+  {n:"Зуб акулы на шнурке",   d:"Амулет на удачу.",                                      p:1, c:"magic", r:"common", s:1},
+  {n:"Кость предсказания",    d:"Брось — узнай «да» или «нет». Врёт через раз.",         p:2, c:"magic", r:"common", s:1},
+  {n:"Сушёный глаз жабы",     d:"Брось в воду — покажет яд позеленением.",               p:1, c:"magic", r:"common", s:1},
+  {n:"Руна защиты",           d:"Глиняная табличка. Отпугивает крыс и мелких тварей.",   p:2, c:"magic", r:"common", s:1},
+
+  {n:"Кольцо огня",           d:"Раз в день — струя пламени из пальца на 5 м.",          p:15, c:"magic", r:"rare", dmg:3, s:1},
+  {n:"Амулет здоровья",       d:"Медленно заживляет царапины.",                          p:15, c:"magic", r:"rare", s:1},
+  {n:"Жезл молний",           d:"Три заряда. Бьёт на 10 м, оглушает.",                   p:20, c:"magic", r:"rare", dmg:4, s:1},
+  {n:"Перчатки силы",         d:"Удваивают силу хвата. Гнуть решётки — легко.",          p:15, c:"magic", r:"rare", s:1},
+
+  {n:"Сфера телепортации",    d:"Хрустальный шар. Раз в день — прыжок на 50 м.",         p:100, c:"magic", r:"epic", s:1},
+  {n:"Корона мудрости",       d:"Железный венец. Честный ответ на один вопрос в день.",  p:100, c:"magic", r:"epic", s:1},
+
+  // ============================
+  //  💰 СОКРОВИЩА (16)
+  // ============================
+  {n:"Горсть медяков (50)",   d:"Потёртые монеты. Пахнут чужими руками.",                p:1, c:"treasure", r:"common", s:1},
+  {n:"Серебряные монеты (10)",d:"Из старого кошеля. Чеканка разных королевств.",         p:1, c:"treasure", r:"common", s:1},
+  {n:"Медный кубок",          d:"Помятый, но если отполировать — сгодится.",             p:1, c:"treasure", r:"common", s:1},
+  {n:"Потёртый дублон",       d:"Чеканка нечитаемая, но золото настоящее.",              p:2, c:"treasure", r:"common", s:1},
+  {n:"Костяные игральные кости",d:"Один кубик явно шулерский.",                          p:1, c:"treasure", r:"common", s:1},
+  {n:"Бисерный кошель",       d:"Пустой, но вышивка красивая.",                          p:2, c:"treasure", r:"common", s:1},
+  {n:"Малахитовая брошь",     d:"Зелёный камень в простой оправе.",                      p:3, c:"treasure", r:"common", s:1},
+  {n:"Полированный агат",     d:"Полосатый камешек. Переливается на свету.",             p:2, c:"treasure", r:"common", s:1},
+  {n:"Серебряная цепочка",    d:"Короткая, с простым замком.",                           p:4, c:"treasure", r:"common", s:1},
+  {n:"Кусок янтаря",          d:"Внутри, кажется, муравей. Коллекционная вещь.",         p:3, c:"treasure", r:"common", s:1},
+
+  {n:"Золотое ожерелье",      d:"Тонкая цепочка, кулон с гранатом.",                     p:25, c:"treasure", r:"rare", s:1},
+  {n:"Рубин в серебре",       d:"Чистый, с горошину. Переливается как кровь.",           p:30, c:"treasure", r:"rare", s:1},
+  {n:"Чёрная жемчужина",      d:"Редкость, переливается фиолетовым.",                    p:40, c:"treasure", r:"rare", s:1},
+  {n:"Слиток серебра",        d:"На ладонь. Тяжёлый и холодный.",                        p:20, c:"treasure", r:"rare", s:1},
+
+  {n:"Сундучок с золотом",    d:"150 монет внутри. Замок может быть проклят.",           p:150, c:"treasure", r:"epic", s:2},
+  {n:"Корона павшего короля", d:"Золото, изумруды, следы крови.",                        p:250, c:"treasure", r:"epic", s:1}
+];
+
+// ============================
+//  КОНСТАНТЫ
+// ============================
+const CAT_NAMES = {
+  weapon: "⚔️ Оружие", armor: "🛡️ Доспехи", tool: "🔧 Инструменты",
+  gear: "🎒 Снаряжение", magic: "✨ Магия", treasure: "💰 Сокровища"
+};
+
+const RARITY_NAMES = {
+  common: "⚪ Обычный", rare: "🔵 Редкий", epic: "🟣 Эпический"
+};
+
+const RARITY_WEIGHTS = { common: 0.70, rare: 0.22, epic: 0.08 };
+const MAX_SLOTS = 10;
+
+// ============================
+//  СОСТОЯНИЕ
+// ============================
+let activeFilters = new Set(["weapon","armor","tool","gear","magic","treasure"]);
+let history = [];
+let totalOpened = 0;
+let isAnimating = false;
+
+function toggleFilter(btn) {
+  const cat = btn.dataset.cat;
+  if (activeFilters.has(cat)) {
+    if (activeFilters.size <= 1) return;
+    activeFilters.delete(cat);
+    btn.classList.remove("active");
+  } else {
+    activeFilters.add(cat);
+    btn.classList.add("active");
+  }
+}
+
+function rollLoot() {
+  const pool = LOOT.filter(item => activeFilters.has(item.c));
+  if (pool.length === 0) return LOOT[0];
+
+  const groups = { common: [], rare: [], epic: [] };
+  pool.forEach(item => groups[item.r].push(item));
+
+  const roll = Math.random();
+  let targetRarity;
+  if (roll < RARITY_WEIGHTS.common) targetRarity = "common";
+  else if (roll < RARITY_WEIGHTS.common + RARITY_WEIGHTS.rare) targetRarity = "rare";
+  else targetRarity = "epic";
+
+  if (groups[targetRarity].length === 0) {
+    const available = ["common","rare","epic"].filter(r => groups[r].length > 0);
+    targetRarity = available[Math.floor(Math.random() * available.length)];
+  }
+
+  const group = groups[targetRarity];
+  return group[Math.floor(Math.random() * group.length)];
+}
+
+function renderStats(item) {
+  const stats = [];
+  if (item.dmg) stats.push(`<span class="stat-badge stat-damage">⚔️ Урон: ${item.dmg}</span>`);
+  if (item.arm) stats.push(`<span class="stat-badge stat-armor">🛡️ Броня: ${item.arm}</span>`);
+  if (item.dr)  stats.push(`<span class="stat-badge stat-shield">🛡️ –${item.dr} урон</span>`);
+  const slots = item.s || 1;
+  stats.push(`<span class="stat-badge stat-slots">🎒 Слотов: ${slots}</span>`);
+  if (item.note) stats.push(`<span class="stat-badge stat-note">⚠️ ${item.note}</span>`);
+  return stats.join("");
+}
+
+function openChest() {
+  if (isAnimating) return;
+  isAnimating = true;
+
+  const btn = document.getElementById("btnOpen");
+  const chest = document.getElementById("chest");
+  const card = document.getElementById("card");
+
+  btn.disabled = true;
+  card.classList.remove("visible","common","rare","epic");
+
+  chest.textContent = "🎁";
+  chest.classList.add("shake");
+
+  setTimeout(() => {
+    chest.classList.remove("shake");
+    chest.textContent = "✨";
+    chest.classList.add("open");
+
+    const item = rollLoot();
+
+    setTimeout(() => {
+      chest.classList.remove("open");
+      chest.textContent = "📦";
+
+      card.classList.add(item.r);
+      document.getElementById("cardCategory").textContent = CAT_NAMES[item.c];
+
+      const rarityEl = document.getElementById("cardRarity");
+      rarityEl.textContent = RARITY_NAMES[item.r];
+      rarityEl.className = "card-rarity " + item.r;
+
+      const nameEl = document.getElementById("cardName");
+      nameEl.textContent = item.n;
+      nameEl.className = "card-name " + item.r;
+
+      document.getElementById("cardDesc").textContent = item.d;
+      document.getElementById("cardStats").innerHTML = renderStats(item);
+      document.getElementById("cardPrice").textContent = "💰 " + item.p + " gp";
+
+      card.classList.add("visible");
+
+      totalOpened++;
+      document.getElementById("counter").textContent = "Сундуков открыто: " + totalOpened;
+
+      addToHistory(item);
+
+      btn.disabled = false;
+      isAnimating = false;
+    }, 400);
+  }, 600);
+}
+
+function addToHistory(item) {
+  history.unshift(item);
+  renderHistory();
+}
+
+function removeFromHistory(index) {
+  history.splice(index, 1);
+  renderHistory();
+}
+
+function renderHistory() {
+  const bottom = document.getElementById("bottomSection");
+
+  if (history.length === 0) {
+    bottom.style.display = "none";
+    return;
+  }
+
+  bottom.style.display = "grid";
+
+  const list = document.getElementById("historyList");
+  list.innerHTML = history.map((item, idx) => `
+    <div class="history-item ${item.r}">
+      <span class="hist-name" title="${item.n}">${item.n}</span>
+      <span class="hist-price">
+        💰 ${item.p}
+        <button class="hist-remove" onclick="removeFromHistory(${idx})" title="Убрать (оставить себе)">×</button>
+      </span>
+    </div>
+  `).join("");
+
+  const total = history.reduce((sum, i) => sum + i.p, 0);
+  document.getElementById("walletValue").textContent = total;
+
+  const totalSlots = history.reduce((sum, i) => sum + (i.s || 1), 0);
+  const slotsEl = document.getElementById("slotsValue");
+  slotsEl.textContent = `${totalSlots} / ${MAX_SLOTS}`;
+  slotsEl.classList.toggle("over", totalSlots > MAX_SLOTS);
+}
+
+function clearHistory() {
+  history = [];
+  totalOpened = 0;
+  document.getElementById("counter").textContent = "Сундуков открыто: 0";
+  renderHistory();
+}
+
+(function initParticles() {
+  const c = document.getElementById("particles");
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.left = Math.random() * 100 + "%";
+    p.style.animationDuration = (8 + Math.random() * 12) + "s";
+    p.style.animationDelay = (Math.random() * 10) + "s";
+    const size = (2 + Math.random() * 3) + "px";
+    p.style.width = size;
+    p.style.height = size;
+    c.appendChild(p);
+  }
+})();
+</script>
+
+</body>
+</html>
